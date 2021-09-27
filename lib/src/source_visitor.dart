@@ -2123,9 +2123,7 @@ class SourceVisitor extends ThrowingAstVisitor {
           // package:dotted.name/name.dart -> name
           result = packageName;
         } else if (packageName == _currentPackage) {
-          // TODO: The issue uses "/" here but the proposal says ":". Using
-          // "/" to match relative paths below.
-          result = '/$path';
+          result = ':$path';
         } else {
           // package:name/path.dart -> name:path
           result = '$packageName:$path';
