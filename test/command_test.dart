@@ -286,7 +286,6 @@ void main() {
       expect(
           await process.stdout.next, 'Idiomatically format Dart source code.');
       await expectLater(process.stdout, emitsThrough(contains('-o, --output')));
-      await expectLater(process.stdout, emitsThrough(contains('--fix')));
       await expectLater(process.stdout, neverEmits(contains('--summary')));
       await process.shouldExit(0);
     });
@@ -298,7 +297,6 @@ void main() {
       await expectLater(process.stdout, emitsThrough(contains('-o, --output')));
       await expectLater(process.stdout, emitsThrough(contains('--show')));
       await expectLater(process.stdout, emitsThrough(contains('--summary')));
-      await expectLater(process.stdout, emitsThrough(contains('--fix')));
       await process.shouldExit(0);
     });
   });
@@ -309,61 +307,24 @@ void main() {
     await process.shouldExit(64);
   });
 
-  group('fix', () {
-    test('--fix applies all fixes', () async {
-      var process = await runCommand(['--fix', '--output=show']);
-      process.stdin.writeln('foo({a:1}) {');
-      process.stdin.writeln('  new Bar(const Baz(const []));}');
-      await process.stdin.close();
+  test('--fix prints a deprecation message', () async {
+    var process = await runCommand(['--fix']);
 
-      expect(await process.stdout.next, 'foo({a = 1}) {');
-      expect(await process.stdout.next, '  Bar(const Baz([]));');
-      expect(await process.stdout.next, '}');
-      await process.shouldExit(0);
-    });
+    await expectLater(
+        process.stderr,
+        emitsThrough(contains(
+            'The "dart format --fix" command is redundant and has been removed.')));
+    await process.shouldExit(64);
+  });
 
-    test('--fix-named-default-separator', () async {
-      var process =
-          await runCommand(['--fix-named-default-separator', '--output=show']);
-      process.stdin.writeln('foo({a:1}) {');
-      process.stdin.writeln('  new Bar();}');
-      await process.stdin.close();
+  test('--fix-<name> prints a deprecation message', () async {
+    var process = await runCommand(['--fix-optional-new']);
 
-      expect(await process.stdout.next, 'foo({a = 1}) {');
-      expect(await process.stdout.next, '  new Bar();');
-      expect(await process.stdout.next, '}');
-      await process.shouldExit(0);
-    });
-
-    test('--fix-optional-const', () async {
-      var process = await runCommand(['--fix-optional-const', '--output=show']);
-      process.stdin.writeln('foo({a:1}) {');
-      process.stdin.writeln('  const Bar(const Baz());}');
-      await process.stdin.close();
-
-      expect(await process.stdout.next, 'foo({a: 1}) {');
-      expect(await process.stdout.next, '  const Bar(Baz());');
-      expect(await process.stdout.next, '}');
-      await process.shouldExit(0);
-    });
-
-    test('--fix-optional-new', () async {
-      var process = await runCommand(['--fix-optional-new', '--output=show']);
-      process.stdin.writeln('foo({a:1}) {');
-      process.stdin.writeln('  new Bar();}');
-      await process.stdin.close();
-
-      expect(await process.stdout.next, 'foo({a: 1}) {');
-      expect(await process.stdout.next, '  Bar();');
-      expect(await process.stdout.next, '}');
-      await process.shouldExit(0);
-    });
-
-    test('errors with --fix and specific fix flag', () async {
-      var process =
-          await runCommand(['--fix', '--fix-named-default-separator']);
-      await process.shouldExit(64);
-    });
+    await expectLater(
+        process.stderr,
+        emitsThrough(contains(
+            'The "dart format --fix" command is redundant and has been removed.')));
+    await process.shouldExit(64);
   });
 
   group('--indent', () {

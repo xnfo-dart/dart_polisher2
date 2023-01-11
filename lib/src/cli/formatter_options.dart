@@ -5,13 +5,12 @@
 import 'dart:io';
 
 import '../source_code.dart';
-import '../style_fix.dart';
 import 'output.dart';
 import 'show.dart';
 import 'summary.dart';
 
 // Note: The following line of code is modified by tool/grind.dart.
-const dartStyleVersion = '2.2.5-dev';
+const dartStyleVersion = '3.0.0-dev';
 
 /// Global options that affect how the formatter produces and uses its outputs.
 class FormatterOptions {
@@ -24,9 +23,6 @@ class FormatterOptions {
 
   /// Whether symlinks should be traversed when formatting a directory.
   final bool followLinks;
-
-  /// The style fixes to apply while formatting.
-  final List<StyleFix> fixes;
 
   /// Which affected files should be shown.
   final Show show;
@@ -43,12 +39,10 @@ class FormatterOptions {
       {this.indent = 0,
       this.pageWidth = 80,
       this.followLinks = false,
-      Iterable<StyleFix>? fixes,
       this.show = Show.changed,
       this.output = Output.write,
       this.summary = Summary.none,
-      this.setExitIfChanged = false})
-      : fixes = [...?fixes];
+      this.setExitIfChanged = false});
 
   /// Called when [file] is about to be formatted.
   ///

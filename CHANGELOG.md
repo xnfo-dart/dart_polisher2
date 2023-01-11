@@ -1,4 +1,10 @@
-# 2.2.5-dev
+# 3.0.0-dev
+
+* **Breaking change:** Remove `--fix` and the other specific `--fix-<name>`
+  options. To automatically apply fixes to your Dart code, use the `dart fix`
+  command instead.
+
+Non-breaking changes:
 
 * Require `package:analyzer` `^5.1.0`.
 * Format unnamed libraries.

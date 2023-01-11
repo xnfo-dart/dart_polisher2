@@ -21,7 +21,6 @@ const formattedSource = 'void main() => print("hello");\n';
 const formattedOutput = 'void main() => print("hello");';
 
 final _indentPattern = RegExp(r'\(indent (\d+)\)');
-final _fixPattern = RegExp(r'\(fix ([a-x-]+)\)');
 final _unicodePattern = RegExp(r'×([0-9a-fA-F]{2,4})');
 
 /// If tool/command_shell.dart has been compiled to a snapshot, this is the path
@@ -141,7 +140,7 @@ Future<TestProcess> runCommandOnDir([List<String>? args]) {
 }
 
 /// Run tests defined in "*.unit" and "*.stmt" files inside directory [name].
-void testDirectory(String name, [Iterable<StyleFix>? fixes]) {
+void testDirectory(String name) {
   // Locate the "test" directory. Use mirrors so that this works with the test
   // package, which loads this suite into an isolate.
   // TODO(rnystrom): Investigate using Isolate.resolvePackageUri instead.
@@ -159,11 +158,11 @@ void testDirectory(String name, [Iterable<StyleFix>? fixes]) {
       continue;
     }
 
-    _testFile(name, entry.path, fixes);
+    _testFile(name, entry.path);
   }
 }
 
-void testFile(String path, [Iterable<StyleFix>? fixes]) {
+void testFile(String path) {
   // Locate the "test" directory. Use mirrors so that this works with the test
   // package, which loads this suite into an isolate.
   var testDir = p.dirname(currentMirrorSystem()
@@ -171,12 +170,10 @@ void testFile(String path, [Iterable<StyleFix>? fixes]) {
       .uri
       .toFilePath());
 
-  _testFile(p.dirname(path), p.join(testDir, path), fixes);
+  _testFile(p.dirname(path), p.join(testDir, path));
 }
 
-void _testFile(String name, String path, Iterable<StyleFix>? baseFixes) {
-  var fixes = [...?baseFixes];
-
+void _testFile(String name, String path) {
   group('$name ${p.basename(path)}', () {
     // Explicitly create a File, in case the entry is a Link.
     var lines = File(path).readAsLinesSync();
@@ -197,12 +194,6 @@ void _testFile(String name, String path, Iterable<StyleFix>? baseFixes) {
       var leadingIndent = 0;
       description = description.replaceAllMapped(_indentPattern, (match) {
         leadingIndent = int.parse(match[1]!);
-        return '';
-      });
-
-      // Let the test specify fixes to apply.
-      description = description.replaceAllMapped(_fixPattern, (match) {
-        fixes.add(StyleFix.all.firstWhere((fix) => fix.name == match[1]));
         return '';
       });
 
@@ -244,8 +235,8 @@ void _testFile(String name, String path, Iterable<StyleFix>? baseFixes) {
             isCompilationUnit: isCompilationUnit);
         var expectedText = expected.text;
 
-        var formatter = DartFormatter(
-            pageWidth: pageWidth, indent: leadingIndent, fixes: fixes);
+        var formatter =
+            DartFormatter(pageWidth: pageWidth, indent: leadingIndent);
 
         var actual = formatter.formatSource(inputCode);
 

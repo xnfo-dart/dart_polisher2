@@ -26,10 +26,8 @@ Future<void> formatStdin(
   var completer = Completer<void>();
   var input = StringBuffer();
   stdin.transform(Utf8Decoder()).listen(input.write, onDone: () {
-    var formatter = DartFormatter(
-        indent: options.indent,
-        pageWidth: options.pageWidth,
-        fixes: options.fixes);
+    var formatter =
+        DartFormatter(indent: options.indent, pageWidth: options.pageWidth);
     try {
       options.beforeFile(null, name);
       var source = SourceCode(input.toString(),
@@ -135,10 +133,8 @@ bool processDirectory(FormatterOptions options, Directory directory) {
 bool processFile(FormatterOptions options, File file, {String? displayPath}) {
   displayPath ??= file.path;
 
-  var formatter = DartFormatter(
-      indent: options.indent,
-      pageWidth: options.pageWidth,
-      fixes: options.fixes);
+  var formatter =
+      DartFormatter(indent: options.indent, pageWidth: options.pageWidth);
   try {
     var source = SourceCode(file.readAsStringSync(), uri: file.path);
     options.beforeFile(file, displayPath);

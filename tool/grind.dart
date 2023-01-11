@@ -73,7 +73,7 @@ $dart2jsOutput''');
 ///
 ///   2. Run this task:
 ///
-///         pub run grinder bump
+///         dart run grinder bump
 ///
 ///   3. Commit the change to a branch.
 ///

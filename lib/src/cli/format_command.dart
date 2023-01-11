@@ -6,7 +6,6 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../io.dart';
-import '../style_fix.dart';
 import 'formatter_options.dart';
 import 'options.dart';
 import 'output.dart';
@@ -35,6 +34,10 @@ class FormatCommand extends Command<int> {
     if (argResults['version']) {
       print(dartStyleVersion);
       return 0;
+    }
+
+    if (hasRemovedFixOption(argResults)) {
+      usageException(removedFixMessage);
     }
 
     var show = const {
@@ -100,18 +103,6 @@ class FormatCommand extends Command<int> {
           '"${argResults['indent']}".');
     }
 
-    var fixes = <StyleFix>[];
-    if (argResults['fix']) fixes.addAll(StyleFix.all);
-    for (var fix in StyleFix.all) {
-      if (argResults['fix-${fix.name}']) {
-        if (argResults['fix']) {
-          usageException('--fix-${fix.name} is redundant with --fix.');
-        }
-
-        fixes.add(fix);
-      }
-    }
-
     List<int>? selection;
     try {
       selection = parseSelection(argResults, 'selection');
@@ -141,7 +132,6 @@ class FormatCommand extends Command<int> {
         indent: indent,
         pageWidth: pageWidth,
         followLinks: followLinks,
-        fixes: fixes,
         show: show,
         output: output,
         summary: summary,

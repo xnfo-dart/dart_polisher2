@@ -3,7 +3,19 @@
 // BSD-style license that can be found in the LICENSE file.
 import 'package:args/args.dart';
 
-import '../style_fix.dart';
+/// The old `--fix` options that dart_style used to support.
+///
+/// They no longer work, but can still be passed in order to print an error
+/// telling users what to run instead.
+const _removedFixOptions = [
+  'fix',
+  'fix-doc-comments',
+  'fix-function-typedefs',
+  'fix-named-default-separator',
+  'fix-optional-const',
+  'fix-optional-new',
+  'fix-single-cascade-statements'
+];
 
 void defineOptions(ArgParser parser,
     {bool oldCli = false, bool verbose = false}) {
@@ -73,13 +85,8 @@ void defineOptions(ArgParser parser,
       negatable: false,
       help: 'Return exit code 1 if there are any formatting changes.');
 
-  if (verbose) parser.addSeparator('Non-whitespace fixes (off by default):');
-  parser.addFlag('fix', negatable: false, help: 'Apply all style fixes.');
-
-  for (var fix in StyleFix.all) {
-    // TODO(rnystrom): Allow negating this if used in concert with "--fix"?
-    parser.addFlag('fix-${fix.name}',
-        negatable: false, help: fix.description, hide: !verbose);
+  for (var fix in _removedFixOptions) {
+    parser.addFlag(fix, negatable: false, hide: true);
   }
 
   if (verbose) parser.addSeparator('Other options:');
@@ -151,3 +158,35 @@ List<int>? parseSelection(ArgResults argResults, String optionName) {
         '"${argResults[optionName]}".');
   }
 }
+
+/// Whether [argResults] was passed any of the deprecated `--fix` options.
+bool hasRemovedFixOption(ArgResults argResults) {
+  return _removedFixOptions.any(argResults.wasParsed);
+}
+
+const removedFixMessage = '''
+The "dart format --fix" command is redundant and has been removed. To apply
+automated fixes to your code using the command line, you can instead use the
+much more powerful "dart fix" command. For each option supported by "--fix",
+there is a corresponding linter rule that "dart fix" can automatically fix:
+
+    dart format --fix option    dart fix linter rule
+    --------------------------  ---------------------------------------------
+    doc-comments                slash_for_doc_comments
+    function-typedefs           prefer_generic_function_type_aliases
+    named-default-separator     deprecated_colon_for_default_value
+    optional-const              unnecessary_const
+    optional-new                unnecessary_new
+    single-cascade-statements   avoid_single_cascade_in_expression_statements
+
+For example, instead of "dart format --fix-optional-const":
+
+1.  Enable the "unnecessary_const" linter rule in your analysis_options.yaml
+    file. If you're using our recommended linter rules, it's already enabled.
+    Otherwise, a minimal analysis_options.yaml file is:
+
+    linter:
+      rules:
+        - unnecessary_const
+
+2.  Run "dart fix --apply --code=unnecessary_const".''';

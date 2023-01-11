@@ -10,7 +10,6 @@ import 'package:dart_style/src/cli/output.dart';
 import 'package:dart_style/src/cli/show.dart';
 import 'package:dart_style/src/cli/summary.dart';
 import 'package:dart_style/src/io.dart';
-import 'package:dart_style/src/style_fix.dart';
 
 void main(List<String> args) async {
   var parser = ArgParser(allowTrailingOptions: true);
@@ -37,6 +36,10 @@ void main(List<String> args) async {
 
   if (argResults['verbose'] && !(argResults['help'] as bool)) {
     usageError(parser, 'Can only use --verbose with --help.');
+  }
+
+  if (hasRemovedFixOption(argResults)) {
+    usageError(parser, removedFixMessage);
   }
 
   List<int>? selection;
@@ -108,18 +111,6 @@ void main(List<String> args) async {
 
   var followLinks = argResults['follow-links'];
 
-  var fixes = <StyleFix>[];
-  if (argResults['fix']) fixes.addAll(StyleFix.all);
-  for (var fix in StyleFix.all) {
-    if (argResults['fix-${fix.name}']) {
-      if (argResults['fix']) {
-        usageError(parser, '--fix-${fix.name} is redundant with --fix.');
-      }
-
-      fixes.add(fix);
-    }
-  }
-
   if (argResults.wasParsed('stdin-name') && argResults.rest.isNotEmpty) {
     usageError(parser, 'Cannot pass --stdin-name when not reading from stdin.');
   }
@@ -128,7 +119,6 @@ void main(List<String> args) async {
       indent: indent,
       pageWidth: pageWidth,
       followLinks: followLinks,
-      fixes: fixes,
       show: show,
       output: output,
       summary: summary,

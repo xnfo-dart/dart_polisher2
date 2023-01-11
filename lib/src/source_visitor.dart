@@ -7,8 +7,6 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/source/line_info.dart';
-// ignore: implementation_imports
-import 'package:analyzer/src/clients/dart_style/rewrite_cascade.dart';
 
 import 'argument_list_visitor.dart';
 import 'ast_extensions.dart';
@@ -22,7 +20,6 @@ import 'rule/combinator.dart';
 import 'rule/rule.dart';
 import 'rule/type_argument.dart';
 import 'source_code.dart';
-import 'style_fix.dart';
 
 /// Visits every token of the AST and passes all of the relevant bits to a
 /// [ChunkBuilder].
@@ -57,17 +54,6 @@ class SourceVisitor extends ThrowingAstVisitor {
   ///
   /// This is calculated and cached by [_findSelectionEnd].
   int? _selectionEnd;
-
-  /// How many levels deep inside a constant context the visitor currently is.
-  int _constNesting = 0;
-
-  /// Whether we are currently fixing a typedef declaration.
-  ///
-  /// Set to `true` while traversing the parameters of a typedef being converted
-  /// to the new syntax. The new syntax does not allow `int foo()` as a
-  /// parameter declaration, so it needs to be converted to `int Function() foo`
-  /// as part of the fix.
-  bool _insideNewTypedefFix = false;
 
   /// A stack that tracks forcing nested collections to split.
   ///
@@ -129,8 +115,6 @@ class SourceVisitor extends ThrowingAstVisitor {
 
     // Output trailing comments.
     writePrecedingCommentsAndNewlines(node.endToken.next!);
-
-    assert(_constNesting == 0, 'Should have exited all const contexts.');
 
     // Finish writing and return the complete result.
     return builder.end();
@@ -217,10 +201,7 @@ class SourceVisitor extends ThrowingAstVisitor {
     visit(node.constructorName);
 
     if (node.arguments != null) {
-      // Metadata annotations are always const contexts.
-      _constNesting++;
       visitArgumentList(node.arguments!, nestExpression: false);
-      _constNesting--;
     }
 
     builder.unnest();
@@ -912,16 +893,9 @@ class SourceVisitor extends ThrowingAstVisitor {
       builder.startSpan();
       builder.nestExpression();
 
-      if (_formatter.fixes.contains(StyleFix.namedDefaultSeparator)) {
-        // Change the separator to "=".
-        space();
-        writePrecedingCommentsAndNewlines(node.separator!);
-        _writeText('=', node.separator!);
-      } else {
-        // The '=' separator is preceded by a space, ":" is not.
-        if (node.separator!.type == TokenType.EQ) space();
-        token(node.separator);
-      }
+      // The '=' separator is preceded by a space, ":" is not.
+      if (node.separator!.type == TokenType.EQ) space();
+      token(node.separator);
 
       soloSplit(_assignmentCost(node.defaultValue!));
       visit(node.defaultValue);
@@ -1111,123 +1085,8 @@ class SourceVisitor extends ThrowingAstVisitor {
     token(node.semicolon);
   }
 
-  /// Parenthesize the target of the given statement's expression (assumed to
-  /// be a CascadeExpression) before removing the cascade.
-  void _fixCascadeByParenthesizingTarget(ExpressionStatement statement) {
-    var cascade = statement.expression as CascadeExpression;
-    assert(cascade.cascadeSections.length == 1);
-
-    // Write any leading comments and whitespace immediately, as they should
-    // precede the new opening parenthesis, but then prevent them from being
-    // written again after the parenthesis.
-    writePrecedingCommentsAndNewlines(cascade.target.beginToken);
-    _suppressPrecedingCommentsAndNewLines.add(cascade.target.beginToken);
-
-    // Finally, we can revisit a clone of this ExpressionStatement to actually
-    // remove the cascade.
-    visit(
-      fixCascadeByParenthesizingTarget(
-        expressionStatement: statement,
-        cascadeExpression: cascade,
-      ),
-    );
-  }
-
-  void _removeCascade(ExpressionStatement statement) {
-    var cascade = statement.expression as CascadeExpression;
-    var subexpression = cascade.cascadeSections.single;
-    builder.nestExpression();
-
-    if (subexpression is AssignmentExpression ||
-        subexpression is MethodInvocation ||
-        subexpression is PropertyAccess) {
-      // CascadeExpression("leftHandSide", "..",
-      //     AssignmentExpression("target", "=", "rightHandSide"))
-      //
-      // transforms to
-      //
-      // AssignmentExpression(
-      //     PropertyAccess("leftHandSide", ".", "target"),
-      //     "=",
-      //     "rightHandSide")
-      //
-      // CascadeExpression("leftHandSide", "..",
-      //     MethodInvocation("target", ".", "methodName", ...))
-      //
-      // transforms to
-      //
-      // MethodInvocation(
-      //     PropertyAccess("leftHandSide", ".", "target"),
-      //     ".",
-      //     "methodName", ...)
-      //
-      // And similarly for PropertyAccess expressions.
-      visit(insertCascadeTargetIntoExpression(
-          expression: subexpression, cascadeTarget: cascade.target));
-    } else {
-      throw UnsupportedError(
-          '--fix-single-cascade-statements: subexpression of cascade '
-          '"$cascade" has unsupported type ${subexpression.runtimeType}.');
-    }
-
-    token(statement.semicolon);
-    builder.unnest();
-  }
-
-  /// Remove any unnecessary single cascade from the given expression statement,
-  /// which is assumed to contain a [CascadeExpression].
-  ///
-  /// Returns true after applying the fix, which involves visiting the nested
-  /// expression. Callers must visit the nested expression themselves
-  /// if-and-only-if this method returns false.
-  bool _fixSingleCascadeStatement(ExpressionStatement statement) {
-    var cascade = statement.expression as CascadeExpression;
-    if (cascade.cascadeSections.length != 1) return false;
-
-    var target = cascade.target;
-    if (target is AsExpression ||
-        target is AwaitExpression ||
-        target is BinaryExpression ||
-        target is ConditionalExpression ||
-        target is IsExpression ||
-        target is PostfixExpression ||
-        target is PrefixExpression) {
-      // In these cases, the cascade target needs to be parenthesized before
-      // removing the cascade, otherwise the semantics will change.
-      _fixCascadeByParenthesizingTarget(statement);
-      return true;
-    } else if (target is BooleanLiteral ||
-        target is FunctionExpression ||
-        target is IndexExpression ||
-        target is InstanceCreationExpression ||
-        target is IntegerLiteral ||
-        target is ListLiteral ||
-        target is NullLiteral ||
-        target is MethodInvocation ||
-        target is ParenthesizedExpression ||
-        target is PrefixedIdentifier ||
-        target is PropertyAccess ||
-        target is SimpleIdentifier ||
-        target is StringLiteral ||
-        target is ThisExpression) {
-      // OK to simply remove the cascade.
-      _removeCascade(statement);
-      return true;
-    } else {
-      // If we get here, some new syntax was added to the language that the fix
-      // does not yet support. Leave it as is.
-      return false;
-    }
-  }
-
   @override
   void visitExpressionStatement(ExpressionStatement node) {
-    if (_formatter.fixes.contains(StyleFix.singleCascadeStatements) &&
-        node.expression is CascadeExpression &&
-        _fixSingleCascadeStatement(node)) {
-      return;
-    }
-
     _simpleStatement(node, () {
       visit(node.expression);
     });
@@ -1575,13 +1434,7 @@ class SourceVisitor extends ThrowingAstVisitor {
 
   @override
   void visitFunctionExpression(FunctionExpression node) {
-    // Inside a function body is no longer in the surrounding const context.
-    var oldConstNesting = _constNesting;
-    _constNesting = 0;
-
     _visitFunctionBody(node.typeParameters, node.parameters, node.body);
-
-    _constNesting = oldConstNesting;
   }
 
   @override
@@ -1608,27 +1461,6 @@ class SourceVisitor extends ThrowingAstVisitor {
   void visitFunctionTypeAlias(FunctionTypeAlias node) {
     visitMetadata(node.metadata);
 
-    if (_formatter.fixes.contains(StyleFix.functionTypedefs)) {
-      _simpleStatement(node, () {
-        // Inlined visitGenericTypeAlias
-        _visitGenericTypeAliasHeader(
-            node.typedefKeyword,
-            node.name,
-            node.typeParameters,
-            null,
-            node.returnType?.beginToken ?? node.name);
-
-        space();
-
-        // Recursively convert function-arguments to Function syntax.
-        _insideNewTypedefFix = true;
-        _visitGenericFunctionType(
-            node.returnType, null, node.name, null, node.parameters);
-        _insideNewTypedefFix = false;
-      });
-      return;
-    }
-
     _simpleStatement(node, () {
       token(node.typedefKeyword);
       space();
@@ -1642,25 +1474,15 @@ class SourceVisitor extends ThrowingAstVisitor {
   @override
   void visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node) {
     visitParameterMetadata(node.metadata, () {
-      if (!_insideNewTypedefFix) {
-        modifier(node.requiredKeyword);
-        modifier(node.covariantKeyword);
-        visit(node.returnType, after: space);
-        // Try to keep the function's parameters with its name.
-        builder.startSpan();
-        token(node.name);
-        _visitParameterSignature(node.typeParameters, node.parameters);
-        token(node.question);
-        builder.endSpan();
-      } else {
-        _beginFormalParameter(node);
-        _visitGenericFunctionType(node.returnType, null, node.name,
-            node.typeParameters, node.parameters);
-        token(node.question);
-        split();
-        token(node.name);
-        _endFormalParameter(node);
-      }
+      modifier(node.requiredKeyword);
+      modifier(node.covariantKeyword);
+      visit(node.returnType, after: space);
+      // Try to keep the function's parameters with its name.
+      builder.startSpan();
+      token(node.name);
+      _visitParameterSignature(node.typeParameters, node.parameters);
+      token(node.question);
+      builder.endSpan();
     });
   }
 
@@ -1936,25 +1758,7 @@ class SourceVisitor extends ThrowingAstVisitor {
   void visitInstanceCreationExpression(InstanceCreationExpression node) {
     builder.startSpan();
 
-    var includeKeyword = true;
-
-    if (node.keyword != null) {
-      if (node.keyword!.keyword == Keyword.NEW &&
-          _formatter.fixes.contains(StyleFix.optionalNew)) {
-        includeKeyword = false;
-      } else if (node.keyword!.keyword == Keyword.CONST &&
-          _formatter.fixes.contains(StyleFix.optionalConst) &&
-          _constNesting > 0) {
-        includeKeyword = false;
-      }
-    }
-
-    if (includeKeyword) {
-      token(node.keyword, after: space);
-    } else {
-      // Don't lose comments before the discarded keyword, if any.
-      writePrecedingCommentsAndNewlines(node.keyword!);
-    }
+    token(node.keyword, after: space);
 
     builder.startSpan(Cost.constructorName);
 
@@ -1964,14 +1768,9 @@ class SourceVisitor extends ThrowingAstVisitor {
     builder.nestExpression();
     visit(node.constructorName);
 
-    _startPossibleConstContext(node.keyword);
-
     builder.endSpan();
     visitArgumentList(node.argumentList, nestExpression: false);
     builder.endSpan();
-
-    _endPossibleConstContext(node.keyword);
-
     builder.unnest();
   }
 
@@ -2333,36 +2132,10 @@ class SourceVisitor extends ThrowingAstVisitor {
       _beginFormalParameter(node);
 
       var hasType = node.type != null;
-      if (_insideNewTypedefFix && !hasType) {
-        // Parameters can use "var" instead of "dynamic". Since we are inserting
-        // "dynamic" in that case, remove the "var".
-        if (node.keyword != null) {
-          if (node.keyword!.type != Keyword.VAR) {
-            modifier(node.keyword);
-          } else {
-            // Keep any comment attached to "var".
-            writePrecedingCommentsAndNewlines(node.keyword!);
-          }
-        }
-
-        // In function declarations and the old typedef syntax, you can have a
-        // parameter name without a type. In the new syntax, you can have a type
-        // without a name. Add "dynamic" in that case.
-
-        // Ensure comments on the identifier comes before the inserted type.
-        token(node.name, before: () {
-          _writeText('dynamic', node.name!);
-          split();
-        });
-      } else {
-        modifier(node.keyword);
-        visit(node.type);
-
-        if (hasType && node.name != null) split();
-
-        token(node.name);
-      }
-
+      modifier(node.keyword);
+      visit(node.type);
+      if (hasType && node.name != null) split();
+      token(node.name);
       _endFormalParameter(node);
     });
   }
@@ -2576,8 +2349,6 @@ class SourceVisitor extends ThrowingAstVisitor {
 
     builder.endSpan();
 
-    _startPossibleConstContext(node.keyword);
-
     // Use a single rule for all of the variables. If there are multiple
     // declarations, we will try to keep them all on one line. If that isn't
     // possible, we split after *every* declaration so that each is on its own
@@ -2593,7 +2364,6 @@ class SourceVisitor extends ThrowingAstVisitor {
     if (node.variables.length > 1) builder.endBlockArgumentNesting();
 
     builder.endRule();
-    _endPossibleConstContext(node.keyword);
   }
 
   @override
@@ -2983,16 +2753,7 @@ class SourceVisitor extends ThrowingAstVisitor {
       List<AstNode> elements, Token rightBracket,
       [int? cost]) {
     if (node != null) {
-      // See if `const` should be removed.
-      if (node.constKeyword != null &&
-          _constNesting > 0 &&
-          _formatter.fixes.contains(StyleFix.optionalConst)) {
-        // Don't lose comments before the discarded keyword, if any.
-        writePrecedingCommentsAndNewlines(node.constKeyword!);
-      } else {
-        modifier(node.constKeyword);
-      }
-
+      modifier(node.constKeyword);
       visit(node.typeArguments);
     }
 
@@ -3011,7 +2772,6 @@ class SourceVisitor extends ThrowingAstVisitor {
     _collectionSplits.add(false);
 
     _beginBody(leftBracket);
-    if (node != null) _startPossibleConstContext(node.constKeyword);
 
     // If a collection contains a line comment, we assume it's a big complex
     // blob of data with some documented structure. In that case, the user
@@ -3057,7 +2817,6 @@ class SourceVisitor extends ThrowingAstVisitor {
     // If the collection has a trailing comma, the user must want it to split.
     if (elements.hasCommaAfter) force = true;
 
-    if (node != null) _endPossibleConstContext(node.constKeyword);
     _endBody(rightBracket, forceSplit: force);
   }
 
@@ -3357,20 +3116,6 @@ class SourceVisitor extends ThrowingAstVisitor {
     visitCommaSeparatedNodes(nodes, between: () => rule.addName(split()));
 
     builder.unnest();
-  }
-
-  /// If [keyword] is `const`, begins a new constant context.
-  void _startPossibleConstContext(Token? keyword) {
-    if (keyword != null && keyword.keyword == Keyword.CONST) {
-      _constNesting++;
-    }
-  }
-
-  /// If [keyword] is `const`, ends the current outermost constant context.
-  void _endPossibleConstContext(Token? keyword) {
-    if (keyword != null && keyword.keyword == Keyword.CONST) {
-      _constNesting--;
-    }
   }
 
   /// Writes the simple statement or semicolon-delimited top-level declaration.
