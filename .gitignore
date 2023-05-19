@@ -1,3 +1,27 @@
-# https://dart.dev/guides/libraries/private-files
+# Files and directories created by pub.
 .dart_tool/
+.packages
+
+# Conventional directory for build output.
+build/
+coverage/
+tool/genhtml.perl
+
+# Debug files
+/bin/**
+!/bin/format.dart
+/benchmark/debug.txt
+*.dart1
+*.dill
+
+# vscode not necessarily needed for dart projects.
+.vscode/
+
+# Dart2js output 'dart run grinder node' except typescript typings
+/dist/**
+!/dist/node/
+!/dist/node/dart-polisher.d.ts
+!/dist/node/.gitignore
+
+# Don't lock versions when importing package
 pubspec.lock

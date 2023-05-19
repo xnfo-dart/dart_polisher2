@@ -1,6 +1,11 @@
+// The code was taken from dart_style package and modified by Xnfo.
+// The dart_style package copyright notice is as follows:
+//
 // Copyright (c) 2015, the Dart project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
+import '../dart_formatter.dart';
+
 import '../chunk.dart';
 import '../debug.dart' as debug;
 import '../line_writer.dart';
@@ -93,94 +98,108 @@ const _maxAttempts = 5000;
 /// require a lot of exploring to find an optimal solution. To make that fast,
 /// this code is carefully profiled and optimized. If you modify this, make
 /// sure to test against the benchmark to ensure you don't regress performance.
-class LineSplitter {
-  final LineWriter writer;
+class LineSplitter
+{
+    //! CHANGED(tekert) added formatter for idents
+    final DartFormatter _formatter;
 
-  /// The list of chunks being split.
-  final List<Chunk> chunks;
+    final LineWriter writer;
 
-  /// The set of soft rules whose values are being selected.
-  final List<Rule> rules;
+    /// The list of chunks being split.
+    final List<Chunk> chunks;
 
-  /// The number of characters of additional indentation to apply to each line.
-  ///
-  /// This is used when formatting blocks to get the output into the right
-  /// column based on where the block appears.
-  final int blockIndentation;
+    /// The set of soft rules whose values are being selected.
+    final List<Rule> rules;
 
-  /// The queue of solve states to explore further.
-  ///
-  /// This is sorted lowest-cost first. This ensures that as soon as we find a
-  /// solution that fits in the page, we know it will be the lowest cost one
-  /// and can stop looking.
-  final _queue = SolveStateQueue();
+    /// The number of characters of additional indentation to apply to each line.
+    ///
+    /// This is used when formatting blocks to get the output into the right
+    /// column based on where the block appears.
+    final int blockIndentation;
 
-  /// Creates a new splitter for [_writer] that tries to fit [chunks] into the
-  /// page width.
-  LineSplitter(this.writer, this.chunks, this.blockIndentation)
-      : // Collect the set of rules that we need to select values for.
-        rules =
-            chunks.map((chunk) => chunk.rule).toSet().toList(growable: false) {
-    _queue.bindSplitter(this);
+    /// The queue of solve states to explore further.
+    ///
+    /// This is sorted lowest-cost first. This ensures that as soon as we find a
+    /// solution that fits in the page, we know it will be the lowest cost one
+    /// and can stop looking.
+    final _queue = SolveStateQueue();
 
-    // Store the rule's index in the rule so we can get from a chunk to a rule
-    // index quickly.
-    for (var i = 0; i < rules.length; i++) {
-      rules[i].index = i;
+    /// Creates a new splitter for [_writer] that tries to fit [chunks] into the
+    /// page width.
+    // //! CHANGED(tekert) added formatter for idents
+    LineSplitter(this.writer, this.chunks, this.blockIndentation, this._formatter)
+        : // Collect the set of rules that we need to select values for.
+          rules = chunks.map((chunk) => chunk.rule).toSet().toList(growable: false)
+    {
+        _queue.bindSplitter(this);
+
+        // Store the rule's index in the rule so we can get from a chunk to a rule
+        // index quickly.
+        for (var i = 0; i < rules.length; i++)
+        {
+            rules[i].index = i;
+        }
+
+        // Now that every used rule has an index, tell the rules to discard any
+        // constraints on unindexed rules.
+        for (var rule in rules)
+        {
+            rule.forgetUnusedRules();
+        }
     }
 
-    // Now that every used rule has an index, tell the rules to discard any
-    // constraints on unindexed rules.
-    for (var rule in rules) {
-      rule.forgetUnusedRules();
+    /// Determine the best way to split the chunks into lines that fit in the
+    /// page, if possible.
+    ///
+    /// Returns a [SplitSet] that defines where each split occurs and the
+    /// indentation of each line.
+    SplitSet apply()
+    {
+        //! CHANGED(tekert) added formatter for idents
+        // Start with a completely unbound, unsplit solution.
+        var bestSolution = SolveState(this, RuleSet(rules.length), _formatter);
+        _queue.add(bestSolution);
+
+        var attempts = 0;
+        while (_queue.isNotEmpty)
+        {
+            var state = _queue.removeFirst();
+
+            if (state.isBetterThan(bestSolution))
+            {
+                bestSolution = state;
+
+                // Since we sort solutions by cost the first solution we find that
+                // fits is the winner.
+                if (bestSolution.overflowChars == 0) break;
+            }
+
+            if (debug.traceSplitter)
+            {
+                var best = state == bestSolution ? ' (best)' : '';
+                debug.log('$state$best');
+                debug.dumpLines(chunks, state.splits);
+                debug.log();
+            }
+
+            if (attempts++ > _maxAttempts) break;
+
+            // Try bumping the rule values for rules whose chunks are on long lines.
+            state.expand();
+        }
+
+        if (debug.traceSplitter)
+        {
+            debug.log('$bestSolution (winner)');
+            debug.dumpLines(chunks, bestSolution.splits);
+            debug.log();
+        }
+
+        return bestSolution.splits;
     }
-  }
 
-  /// Determine the best way to split the chunks into lines that fit in the
-  /// page, if possible.
-  ///
-  /// Returns a [SplitSet] that defines where each split occurs and the
-  /// indentation of each line.
-  SplitSet apply() {
-    // Start with a completely unbound, unsplit solution.
-    var bestSolution = SolveState(this, RuleSet(rules.length));
-    _queue.add(bestSolution);
-
-    var attempts = 0;
-    while (_queue.isNotEmpty) {
-      var state = _queue.removeFirst();
-
-      if (state.isBetterThan(bestSolution)) {
-        bestSolution = state;
-
-        // Since we sort solutions by cost the first solution we find that
-        // fits is the winner.
-        if (bestSolution.overflowChars == 0) break;
-      }
-
-      if (debug.traceSplitter) {
-        var best = state == bestSolution ? ' (best)' : '';
-        debug.log('$state$best');
-        debug.dumpLines(chunks, state.splits);
-        debug.log();
-      }
-
-      if (attempts++ > _maxAttempts) break;
-
-      // Try bumping the rule values for rules whose chunks are on long lines.
-      state.expand();
+    void enqueue(SolveState state)
+    {
+        _queue.add(state);
     }
-
-    if (debug.traceSplitter) {
-      debug.log('$bestSolution (winner)');
-      debug.dumpLines(chunks, bestSolution.splits);
-      debug.log();
-    }
-
-    return bestSolution.splits;
-  }
-
-  void enqueue(SolveState state) {
-    _queue.add(state);
-  }
 }
