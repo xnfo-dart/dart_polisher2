@@ -51,6 +51,10 @@ class DartFormatter
     final Set<StyleFix> fixes;
 
     get outerBracesOnBlockLike => options.style.mask & BodyOpt.outerBracesOnBlockLike > 0;
+    get outerIfStatementElse => options.style.mask & BodyOpt.outerIfStatementElse > 0;
+    get outerTryStatementClause =>
+        options.style.mask & BodyOpt.outerTryStatementClause > 0;
+    get outerBracesOnEnumSmart => options.style.mask & BodyOpt.outerBracesOnEnumSmart > 0;
 
     /// Creates a new formatter for Dart code.
     ///

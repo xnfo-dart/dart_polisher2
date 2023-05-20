@@ -49,8 +49,13 @@ enum CodeStyle {
     const CodeStyle(this.name, this.description, this.code, this.mask);
 
     final String name;
+
     final String description;
+
+    /// Code number for the style profile.
     final int code;
+
+    /// Bit-code mask where each bit indicates a particular format option.
     final int mask;
 }
 

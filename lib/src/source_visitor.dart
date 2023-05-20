@@ -2100,7 +2100,7 @@ class SourceVisitor extends ThrowingAstVisitor
 
         if (node.elseStatement != null)
         {
-            if (BodyOpt.outerIfStatementElse & _formatter.options.style.mask > 0)
+            if (_formatter.outerIfStatementElse)
             {
                 //! CHANGED(tekert) always add newline
                 newline();
@@ -3104,7 +3104,7 @@ class SourceVisitor extends ThrowingAstVisitor
             node.rightParenthesis);
 
         //! CHANGED(tekert): add new line on switch statements blocks.
-        if (_formatter.options.style.mask & BodyOpt.outerBracesOnBlockLike > 0)
+        if (_formatter.outerBracesOnBlockLike)
         {
             writePrecedingCommentsAndNewlines(node.leftBracket);
             builder = builder.startBlock(space: false, indent: false);
@@ -3363,7 +3363,7 @@ class SourceVisitor extends ThrowingAstVisitor
         space();
         visit(node.body);
 
-        if (BodyOpt.outerTryStatementClause & _formatter.options.style.mask > 0)
+        if (_formatter.outerTryStatementClause)
         {
             //! CHANGED(tekert) newline before and between catch, on, finally, space removed.
             visitNodes(node.catchClauses, before: newline, between: newline);
@@ -4496,7 +4496,7 @@ class SourceVisitor extends ThrowingAstVisitor
         return hasLineCommentBefore(rightBracket);
     }
 
-    //! CHANGED(tekert) create new helper function for use in _beginBody
+    //! CHANGED(tekert) add method.
     void _beginBodyBlock(Token leftBracket, {bool space = false, bool indent = true})
     {
         // Create a rule for whether or not to split the block contents. If this
@@ -4516,7 +4516,7 @@ class SourceVisitor extends ThrowingAstVisitor
     /// but not Collection Literals or Argument Lists between {}.
     ///
     /// Returns true if nodeType is null (is a node with only comments inside)
-    //! CHANGED(tekert)
+    //! CHANGED(tekert) add method.
     bool _isBlockLike(AstNode? nodeType)
     {
         // nodeType is null if we are visiting a node that
@@ -4554,7 +4554,7 @@ class SourceVisitor extends ThrowingAstVisitor
     void _beginBody(Token leftBracket, {bool space = false, AstNode? nodeType})
     {
         //! CHANGED(tekert) add new line on everything except some collection literals
-        //!  (Assertion In contructors and statements, ArgumentList with trailing comma).
+        //!   and (Assertion In contructors and statements, ArgumentList with trailing comma).
         //! SwitchPatternCase Blocks by default uses a new line.
         if (_formatter.outerBracesOnBlockLike &&
             (leftBracket.type == TokenType.OPEN_CURLY_BRACKET) &&
