@@ -10,7 +10,7 @@ tool/genhtml.perl
 # Debug files
 /bin/**
 !/bin/format.dart
-/benchmark/debug.txt
+/benchmark/*.txt
 *.dart1
 *.dill
 

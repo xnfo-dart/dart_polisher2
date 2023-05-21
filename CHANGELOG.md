@@ -5,6 +5,9 @@ Upstream changelog: [dart_style changelog](https://github.com/dart-lang/dart_sty
 
 ## [Unreleased]
 
+### Fixes
+- [Expanded Style] Fixes empty switch statement formatting. ([#1](https://github.com/xnfo-dart/dart_polisher/issues/1))
+
 ## [0.10.7] - 19/5/2023
 
 ### Breaking changes

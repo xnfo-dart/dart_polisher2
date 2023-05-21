@@ -4,17 +4,19 @@ import 'package:dart_polisher/src/style_fix.dart';
 import 'package:dart_polisher/src/dp_constants.dart';
 import 'package:dart_polisher/src/utils/bitmasks.dart';
 
-/// Styles can have each different tab modes and indents.
+import 'package:analyzer/dart/ast/ast.dart';
+
+/// Styles are profiles that group a default set of formatting options to form a Code Style.
 enum CodeStyle {
     DartStyle("Dart Style", "Google 'dart' style [custom tab indents & tab mode]", 0, 0),
     ExpandedStyle(
         "Expanded",
         "dart_style with outer braces on block-like nodes",
         1,
-        BodyOpt.outerBracesOnBlockLike |
-            BodyOpt.outerBracesOnEnumSmart |
-            BodyOpt.outerTryStatementClause |
-            BodyOpt.outerIfStatementElse),
+        BodyBitOpt.outerBracesOnBlockLike |
+            BodyBitOpt.outerBracesOnEnumSmart |
+            BodyBitOpt.outerTryStatementClause |
+            BodyBitOpt.outerIfStatementElse),
     style2("**", "****", 2, 0),
     style3(".", "...", 3, 0),
     ;
@@ -22,17 +24,6 @@ enum CodeStyle {
     /// Get the enum matching the style [code],
     /// returns the default enum if there is no match or if [code] is null.
     static CodeStyle getStyleFromCode(int? code)
-    {
-        return CodeStyle.values.firstWhere((element) => element.code == code,
-            orElse: () => CodeStyle.DartStyle);
-    }
-
-    /// Get the enum matching the style [code],
-    /// returns the default enum if there is no match or if [code] is null.
-    // TODO(tekert): Remove in version 1.0.0
-    @Deprecated("Use getStyleFromCode instead, "
-        "'getEnum' will be removed in the next mayor version")
-    static CodeStyle getEnum(int? code)
     {
         return CodeStyle.values.firstWhere((element) => element.code == code,
             orElse: () => CodeStyle.DartStyle);
@@ -59,37 +50,33 @@ enum CodeStyle {
     final int mask;
 }
 
-/// Class with bit values representing Formatting options for Body-like sintaxis
+/// Class with bit values representing Formatting options for Body-like sintax
 ///
 /// Its used to build bitmasks: bitmask = option1 | option2;
 ///
-/// These options are used internally by the formatter to format code.
+/// These options are used internally by the formatter to format code of a style [CodeStyle].
 ///
 /// Bracket can be '{}' or '()' or '[]'
 /// Here are the brackets applicable on Body.
 ///
 /// Bracket=>Body=> (Block-like sintax)
-///  Block | ClassDeclaration | ExtensionDeclaration | MixinDeclaration | EnumDeclaration
+///  Block | [ClassDeclaration] | [ExtensionDeclaration] | [MixinDeclaration] | [EnumDeclaration]
 ///
 /// Bracket=>CollectionLiteral=> (Collections-like sintax)
-///  ArgumentList | AssertInitializer | AssertStatement | ListLiteral | SetOrMapLiteral
+///  [ArgumentList] | [AssertInitializer] | [AssertStatement] | [ListLiteral] | [SetOrMapLiteral]
 ///
 /// Block means:
-/// block ::= '{' statement* '}'
-/// statement ::= Block | VariableDeclarationStatement | ForStatement | ForEachStatement |
-///  WhileStatement | DoStatement | SwitchStatement | SwitchExpression | IfStatement | TryStatement |
-///  BreakStatement | ContinueStatement | ReturnStatement | ExpressionStatement |
-///  FunctionDeclarationStatement
+/// [Block] ::= '{' [Statement]* '}'
 ///
 /// Clients may not extend, implement or mix-in this class.
-class BodyOpt
+class BodyBitOpt
 {
     /// Braces '{}' on Block-like Bodies
     ///
     /// These are always newlined.
-    /// Includes: ClassDeclaration | ExtensionDeclaration | MixinDeclaration | SwitchStatement | SwitchExpression
+    /// Includes: [ClassDeclaration] | [ExtensionDeclaration] | [MixinDeclaration] | [SwitchStatement] | [SwitchExpression]
     ///
-    /// Excludes: TypedLiteral | EnumDeclaration (These are handled in other options)
+    /// Excludes: [TypedLiteral] | [EnumDeclaration] (These are handled in other options)
     static const int outerBracesOnBlockLike = CompatibleBits.bit1;
 
     /// Outer braces on collection literals
@@ -112,10 +99,10 @@ class BodyOpt
     /// Puts clause within a [TryStatement] clause on newline.
     static const int outerTryStatementClause = CompatibleBits.bit4;
 
-    /// Puts else [Statement]s on newline, uses space if not set.
+    /// Puts else [IfStatement]s on newline, uses space if not set.
     static const int outerIfStatementElse = CompatibleBits.bit5;
 
-    const BodyOpt();
+    const BodyBitOpt();
 }
 
 /// Constants for the number of spaces in various kinds of indentation.
@@ -183,6 +170,15 @@ class FormatterOptions
     /// Style to use for source code formatting
     /// based on a modified sets of rules derived from the original dart_style classes.
     final CodeStyle style;
+
+    get outerBracesOnBlockLike => style.mask & BodyBitOpt.outerBracesOnBlockLike > 0;
+    get outerIfStatementElse => style.mask & BodyBitOpt.outerIfStatementElse > 0;
+    get outerTryStatementClause => style.mask & BodyBitOpt.outerTryStatementClause > 0;
+    get outerBracesOnEnumSmart => style.mask & BodyBitOpt.outerBracesOnEnumSmart > 0;
+
+    // TODO(tekert): set setters so users can customize format options to tweak particular styles.
+    // there is only a max of 53 options on style.mask, so divide the mask in formatting zones,
+    // like Body options, Argument options or aligning options, strings, etc.
 
     const FormatterOptions(
         {this.lineEnding,
