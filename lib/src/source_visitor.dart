@@ -2814,9 +2814,10 @@ class SourceVisitor extends ThrowingAstVisitor
             // If there is a comment inside the parens, do allow splitting before it.
             if (node.rightParenthesis.precedingComments != null) soloZeroSplit();
 
-            token(node.rightParenthesis);
-            return;
-        }
+      token(node.rightParenthesis);
+      token(node.question);
+      return;
+    }
 
         token(node.leftParenthesis);
         builder.startRule();
