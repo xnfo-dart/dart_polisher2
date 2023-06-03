@@ -5,7 +5,7 @@ class DPConst
 {
     // NOTE: The following line of code is modified by tool/grind.dart.
     /// Dart Polisher version number
-    static const String VERSION = "0.10.8-dev";
+    static const String VERSION = "0.11.1-dev";
 
     /// Version string
     static const String VERSION_STRING = "Formatter version: $VERSION"
@@ -28,5 +28,5 @@ class DefaultValue
     static const int DEFAULT_CONSTRUCTOR_INITIALIZER_INDENT = 4;
     static const int DEFAULT_PAGEWIDTH = 90;
     static const bool DEFAULT_INSERTSPACES = true;
-    static const CodeStyle DEFAULT_STYLE = CodeStyle.DartStyle;
+    static const CodeStyle DEFAULT_STYLE = CodeStyle();
 }

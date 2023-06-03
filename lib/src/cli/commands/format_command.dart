@@ -116,11 +116,11 @@ class FormatCommand extends Command<int>
                 '"${argResults['indent']}".');
         }
 
-        CodeStyle codeStyle = const {
-            '0': CodeStyle.DartStyle,
-            '1': CodeStyle.ExpandedStyle,
-            '2': CodeStyle.style2,
-            '3': CodeStyle.style3,
+        CodeProfile codeProfile = const {
+            '0': CodeProfile.DartStyle,
+            '1': CodeProfile.ExpandedStyle,
+            '2': CodeProfile.style2,
+            '3': CodeProfile.style3,
         }[argResults['code-style']]!;
 
         int tabSize = int.tryParse(argResults['tab-size']) ??
@@ -215,7 +215,7 @@ class FormatCommand extends Command<int>
             indent: indent,
             pageWidth: pageWidth,
             insertSpaces: insertSpaces,
-            style: codeStyle,
+            style: CodeStyle.fromProfile(codeProfile),
             fixes: {...fixes},
             tabSizes: ind,
         );

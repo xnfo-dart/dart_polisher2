@@ -2100,7 +2100,7 @@ class SourceVisitor extends ThrowingAstVisitor
 
         if (node.elseStatement != null)
         {
-            if (_formatter.options.outerIfStatementElse)
+            if (_formatter.options.style.outerIfStatementElse)
             {
                 //! CHANGED(tekert) always add newline
                 newline();
@@ -2814,10 +2814,10 @@ class SourceVisitor extends ThrowingAstVisitor
             // If there is a comment inside the parens, do allow splitting before it.
             if (node.rightParenthesis.precedingComments != null) soloZeroSplit();
 
-      token(node.rightParenthesis);
-      token(node.question);
-      return;
-    }
+            token(node.rightParenthesis);
+            token(node.question);
+            return;
+        }
 
         token(node.leftParenthesis);
         builder.startRule();
@@ -3105,7 +3105,7 @@ class SourceVisitor extends ThrowingAstVisitor
             node.rightParenthesis);
 
         //! CHANGED(tekert): add new line on switch statements blocks.
-        if (_formatter.options.outerBracesOnBlockLike)
+        if (_formatter.options.style.outerBracesOnBlockLike)
         {
             writePrecedingCommentsAndNewlines(node.leftBracket);
             builder = builder.startBlock(space: false, indent: false);
@@ -3375,7 +3375,7 @@ class SourceVisitor extends ThrowingAstVisitor
         space();
         visit(node.body);
 
-        if (_formatter.options.outerTryStatementClause)
+        if (_formatter.options.style.outerTryStatementClause)
         {
             //! CHANGED(tekert) newline before and between catch, on, finally, space removed.
             visitNodes(node.catchClauses, before: newline, between: newline);
@@ -4566,7 +4566,7 @@ class SourceVisitor extends ThrowingAstVisitor
         //! CHANGED(tekert) add new line on everything except some collection literals
         //!   and (Assertion In contructors and statements, ArgumentList with trailing comma).
         //! SwitchPatternCase Blocks by default uses a new line.
-        if (_formatter.options.outerBracesOnBlockLike &&
+        if (_formatter.options.style.outerBracesOnBlockLike &&
             (leftBracket.type == TokenType.OPEN_CURLY_BRACKET) &&
             _isBlockLike(nodeType))
         // EnumDeclaration is handled in [visitEnumDeclaration]

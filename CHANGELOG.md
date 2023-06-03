@@ -5,6 +5,10 @@ Upstream changelog: [dart_style changelog](https://github.com/dart-lang/dart_sty
 
 ## [Unreleased]
 
+### Breaking changes
+- Refactored CodeStyle in FormatterOptions to expose more formatting options on the user side,
+  replaced the use of masks with boolean flags.
+
 ### Fixes
 - [Expanded Style] Fixes empty switch statement formatting. ([#2](https://github.com/xnfo-dart/dart_polisher/issues/2))
 

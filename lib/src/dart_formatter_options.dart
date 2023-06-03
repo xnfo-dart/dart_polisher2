@@ -1,43 +1,35 @@
-// ignore_for_file: constant_identifier_names
+// ignore_for_file: constant_identifier_names, unused_element
 
 import 'package:dart_polisher/src/style_fix.dart';
 import 'package:dart_polisher/src/dp_constants.dart';
-import 'package:dart_polisher/src/utils/bitmasks.dart';
 
 import 'package:analyzer/dart/ast/ast.dart';
 
 /// Styles are profiles that group a default set of formatting options to form a Code Style.
-enum CodeStyle {
-    DartStyle("Dart Style", "Google 'dart' style [custom tab indents & tab mode]", 0, 0),
-    ExpandedStyle(
-        "Expanded",
-        "dart_style with outer braces on block-like nodes",
-        1,
-        BodyBitOpt.outerBracesOnBlockLike |
-            BodyBitOpt.outerBracesOnEnumSmart |
-            BodyBitOpt.outerTryStatementClause |
-            BodyBitOpt.outerIfStatementElse),
-    style2("**", "****", 2, 0),
-    style3(".", "...", 3, 0),
+enum CodeProfile {
+    DartStyle("Dart Style", "Google 'dart' style [custom tab indents & tab mode]", 0),
+    ExpandedStyle("Expanded", "dart_style with outer braces on block-like nodes", 1),
+    style2("**", "****", 2),
+    style3(".", "...", 3),
     ;
 
     /// Get the enum matching the style [code],
     /// returns the default enum if there is no match or if [code] is null.
-    static CodeStyle getStyleFromCode(int? code)
+    static CodeProfile getStyleFromCode(int? code)
     {
-        return CodeStyle.values.firstWhere((element) => element.code == code,
-            orElse: () => CodeStyle.DartStyle);
+        return CodeProfile.values.firstWhere((element) => element.code == code,
+            orElse: () => CodeProfile.DartStyle);
     }
 
     /// Get the first enum matching the style [name],
     /// returns the default enum if there is no match or if [name] is null.
-    static CodeStyle getStyleFromName(String? name)
+    static CodeProfile getStyleFromName(String? name)
     {
-        return CodeStyle.values.firstWhere((element) => element.name == name,
-            orElse: () => CodeStyle.DartStyle);
+        return CodeProfile.values.firstWhere((element) => element.name == name,
+            orElse: () => CodeProfile.DartStyle);
     }
 
-    const CodeStyle(this.name, this.description, this.code, this.mask);
+    const CodeProfile(this.name, this.description, this.code);
 
     final String name;
 
@@ -45,16 +37,13 @@ enum CodeStyle {
 
     /// Code number for the style profile.
     final int code;
-
-    /// Bit-code mask where each bit indicates a particular format option.
-    final int mask;
 }
 
 /// Class with bit values representing Formatting options for Body-like sintax
 ///
 /// Its used to build bitmasks: bitmask = option1 | option2;
 ///
-/// These options are used internally by the formatter to format code of a style [CodeStyle].
+/// These options are used internally by the formatter to format code of a style [CodeProfile].
 ///
 /// Bracket can be '{}' or '()' or '[]'
 /// Here are the brackets applicable on Body.
@@ -69,7 +58,7 @@ enum CodeStyle {
 /// [Block] ::= '{' [Statement]* '}'
 ///
 /// Clients may not extend, implement or mix-in this class.
-class BodyBitOpt
+class CodeStyle
 {
     /// Braces '{}' on Block-like Bodies
     ///
@@ -77,14 +66,14 @@ class BodyBitOpt
     /// Includes: [ClassDeclaration] | [ExtensionDeclaration] | [MixinDeclaration] | [SwitchStatement] | [SwitchExpression]
     ///
     /// Excludes: [TypedLiteral] | [EnumDeclaration] (These are handled in other options)
-    static const int outerBracesOnBlockLike = CompatibleBits.bit1;
+    final bool outerBracesOnBlockLike;
 
     /// Outer braces on collection literals
     /// If they split, they become difficult to distinguish between blocks and collections.
     /// It's folded if it can fit inside max line lenght and split if not.
     ///
     ///! NOT IMPLEMENTED.
-    static const int outerBracesOnCollectionLiteralsSmart = CompatibleBits.bit2;
+    final bool outerBracesOnCollectionLiteralsSmart;
 
     /// Enum is a special case, can look good folded if it fits in max line lenght.
     /// True means split '{' if contents split, remain folded if false.
@@ -92,17 +81,41 @@ class BodyBitOpt
     /// That way it can be better distinguished between block-like nodes.
     ///! NOT IMPLEMENTED.
     // TODO (tekert): not implemented yet, check if it looks good.
-    static const int outerBracesOnEnumSmart = CompatibleBits.bit3;
+    final bool outerBracesOnEnumSmart;
 
     // The stataments that follow a '}' like: else/else if/catch/on/finally
 
     /// Puts clause within a [TryStatement] clause on newline.
-    static const int outerTryStatementClause = CompatibleBits.bit4;
+    final bool outerTryStatementClause;
 
     /// Puts else [IfStatement]s on newline, uses space if not set.
-    static const int outerIfStatementElse = CompatibleBits.bit5;
+    final bool outerIfStatementElse;
 
-    const BodyBitOpt();
+    factory CodeStyle.fromProfile(CodeProfile profile)
+    {
+        switch (profile)
+        {
+            case CodeProfile.DartStyle:
+                return const CodeStyle();
+
+            case CodeProfile.ExpandedStyle:
+                return const CodeStyle(
+                    outerBracesOnBlockLike: true,
+                    outerBracesOnEnumSmart: true,
+                    outerTryStatementClause: true,
+                    outerIfStatementElse: true);
+
+            default:
+                return const CodeStyle();
+        }
+    }
+
+    const CodeStyle(
+        {this.outerBracesOnBlockLike = false,
+        this.outerBracesOnCollectionLiteralsSmart = false,
+        this.outerBracesOnEnumSmart = false,
+        this.outerTryStatementClause = false,
+        this.outerIfStatementElse = false});
 }
 
 /// Constants for the number of spaces in various kinds of indentation.
@@ -170,15 +183,6 @@ class FormatterOptions
     /// Style to use for source code formatting
     /// based on a modified sets of rules derived from the original dart_style classes.
     final CodeStyle style;
-
-    get outerBracesOnBlockLike => style.mask & BodyBitOpt.outerBracesOnBlockLike > 0;
-    get outerIfStatementElse => style.mask & BodyBitOpt.outerIfStatementElse > 0;
-    get outerTryStatementClause => style.mask & BodyBitOpt.outerTryStatementClause > 0;
-    get outerBracesOnEnumSmart => style.mask & BodyBitOpt.outerBracesOnEnumSmart > 0;
-
-    // TODO(tekert): set setters so users can customize format options to tweak particular styles.
-    // there is only a max of 53 options on style.mask, so divide the mask in formatting zones,
-    // like Body options, Argument options or aligning options, strings, etc.
 
     const FormatterOptions(
         {this.lineEnding,

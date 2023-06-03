@@ -68,7 +68,7 @@ abstract class FOptions
         bool insertSpaces,
         FRange? selection});
 
-    /// see [CodeStyle]
+    /// see [CodeProfile]
     external int? get style;
 
     /// Default tab size
@@ -165,7 +165,8 @@ void main()
     formatCode =
         allowInterop((String source, [FOptions? options, bool isCompilationUnit = true])
     {
-        final style = CodeStyle.getStyleFromCode(options?.style);
+        final profile = CodeProfile.getStyleFromCode(options?.style);
+        final style = CodeStyle.fromProfile(profile);
 
         final tabSize = CodeIndent.opt(
             block: options?.tabSizes?.block,

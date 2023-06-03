@@ -81,7 +81,8 @@ String padLeft(input, int length)
 }
 
 // after.dart.txt uses Style 1 with default 4 spaces indentation.
-final opt = FormatterOptions(style: CodeStyle.ExpandedStyle, tabSizes: CodeIndent());
+final opt = FormatterOptions(
+    style: CodeStyle.fromProfile(CodeProfile.ExpandedStyle), tabSizes: CodeIndent());
 
 String formatSource()
 {

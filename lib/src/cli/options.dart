@@ -117,9 +117,7 @@ void defineFormatOptions(ArgParser parser, {bool verbose = false})
 
     parser.addFlag('insert-tabs',
         negatable: false,
-        help: 'Use tabs instead of spaces for indentation\n'
-            '(internally it converts space indents to tabs\n'
-            'uses <tab-size-block> or <tab-size> to detect indent levels for conversion)',
+        help: 'Use tabs instead of spaces for indentation\n',
         defaultsTo: false,
         hide: !verbose);
 

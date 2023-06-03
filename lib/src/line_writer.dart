@@ -192,11 +192,15 @@ class LineWriter
                     _buffer.write(' ' * (splits.getColumn(i)));
                 else
                 {
-                    //TODO (tekert): Doc the use of block as indent.
+                    // NOTE(tekert): We already use spaces for block indentation.
+                    // so we need the indent level.
                     final int column = splits.getColumn(i);
                     final int tabs = column ~/ _formatter.options.tabSizes.block;
-                    final int spaces = column % _formatter.options.tabSizes.block;
                     _buffer.write("\t" * tabs);
+
+                    // NOTE(tekert): In case the indent level is not a whole number.
+                    // Can happen for lines with different expression, initializer or cascade ident.
+                    final int spaces = column % _formatter.options.tabSizes.block;
                     _buffer.write(" " * spaces);
                 }
             }
